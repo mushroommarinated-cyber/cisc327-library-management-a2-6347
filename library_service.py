@@ -130,7 +130,7 @@ def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     conn.close()
 
     if not record:
-        return False, "Error: Book not currently borrowed by this patron."
+        return False, "Error: Book not borrowed by this patron."
 
     # Calculate late fee before returning the book
     late_fee_info = calculate_late_fee_for_book(patron_id, book_id)
