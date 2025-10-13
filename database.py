@@ -9,11 +9,10 @@ from typing import Dict, List, Optional, Tuple
 # database config
 import os
 
-DATABASE = os.environ.get("LIBRARY_DB", "library.db")
+DATABASE = "library.db"  # default
 
-
-def get_db_connection():
-    db_path = os.environ.get("LIBRARY_DB", "library.db")  # Use LIBRARY_DB, same as workflow
+def get_db_connection(test_db: str = None):
+    db_path = test_db if test_db else DATABASE
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn

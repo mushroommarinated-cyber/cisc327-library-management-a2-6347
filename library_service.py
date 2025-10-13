@@ -167,15 +167,15 @@ def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
     }
     """
     if not patron_id or not book_id:
-        return {"fee_amount": 0.0, "days_overdue": 0, "status": "Error: Invalid input."}
+        return {"fee_amount": 0.0, "days_overdue": 0, "copies_overdue": [], "status": "Error: Invalid input."}
 
     book = get_book_by_id(book_id)
     if not book:
-        return {"fee_amount": 0.0, "days_overdue": 0, "status": "Error: Book not found."}
+        return {"fee_amount": 0.0, "days_overdue": 0, "copies_overdue": [], "status": "Error: Book not found."}
 
     record = get_patron_borrow_record(patron_id, book_id)
     if not record:
-        return {"fee_amount": 0.0, "days_overdue": 0, "status": "No active borrow record"}
+        return {"fee_amount": 0.0, "days_overdue": 0, "copies_overdue": [], "status": "No active borrow record"}
 
     borrow_date = datetime.fromisoformat(record["borrow_date"]).date()
     today = datetime.now().date()
@@ -188,9 +188,16 @@ def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
         fee_amount = 0.5 * 7 + 1.0 * (overdue_days - 7)
     fee_amount = min(fee_amount, 15.0)
 
+    copies_overdue = [{
+        "borrow_date": borrow_date.isoformat(),
+        "days_overdue": overdue_days,
+        "late_fee": round(fee_amount, 2)
+    }]
+
     return {
         "fee_amount": round(fee_amount, 2),
         "days_overdue": overdue_days,
+        "copies_overdue": copies_overdue,
         "status": "Success"
     }
 def search_books_in_catalog(search_term: str, search_type: str) -> List[Dict]:

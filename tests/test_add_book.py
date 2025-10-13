@@ -1,7 +1,14 @@
 import pytest
 from library_service import *
+import sqlite3
 
-
+@pytest.fixture(autouse=True)
+def reset_test_db():
+    conn = sqlite3.connect("library.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM books WHERE isbn = '2235567890223'")
+    conn.commit()
+    conn.close()
 def test_add_book_valid_input():
     """Test adding a book with valid input."""
     success, message = add_book_to_catalog("Harry Plotter", "LOL Rowling", "2235567890223", 5)
