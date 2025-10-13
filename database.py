@@ -2,7 +2,7 @@
 Database module for Library Management System
 Handles all database operations and connections
 """
-
+import os
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -12,10 +12,17 @@ DATABASE = 'library.db'
 
 def get_db_connection():
     """Get a database connection."""
+    db_path = os.environ.get("DB_PATH", "library.db")  # default to library.db
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row  # Enables column access by name
+    return conn
+
+"""def get_db_connection():
+    #Get a database connection.
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row  # This enables column access by name
     return conn
-
+"""
 def init_database():
     """Initialize the database with required tables."""
     conn = get_db_connection()
