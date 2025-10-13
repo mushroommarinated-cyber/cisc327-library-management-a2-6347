@@ -1,5 +1,5 @@
 import pytest
-from library_service import search_books_in_catalog
+from library_service import *
 
 
 def test_search_books_ret_list():

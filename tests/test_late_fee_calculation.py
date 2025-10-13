@@ -1,5 +1,5 @@
 import pytest
-from library_service import calculate_late_fee_for_book
+from library_service import *
 
 
 def test_late_fee_returns_dict():

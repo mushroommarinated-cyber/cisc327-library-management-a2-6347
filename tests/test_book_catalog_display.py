@@ -1,4 +1,4 @@
-from library_service import get_all_books
+from library_service import *
 from database import *
 
 def test_catalog_returns_list():

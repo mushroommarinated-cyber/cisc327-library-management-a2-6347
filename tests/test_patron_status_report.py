@@ -1,5 +1,5 @@
 import pytest
-from library_service import get_patron_status_report
+from library_service import *
 
 
 def test_patron_status_report_example_data_structure():

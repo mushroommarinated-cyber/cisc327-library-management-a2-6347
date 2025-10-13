@@ -1,4 +1,4 @@
-from library_service import borrow_book_by_patron
+from library_service import *
 
 
 def test_borrow_book_valid():
