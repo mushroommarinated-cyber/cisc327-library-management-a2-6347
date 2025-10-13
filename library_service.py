@@ -120,7 +120,6 @@ def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     if not book:
         return False, "Error: Book not found."
 
-    # get  earliest active borrow record for patron and book
     conn = get_db_connection()
     record = conn.execute('''
         SELECT * FROM borrow_records
@@ -131,17 +130,16 @@ def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     conn.close()
 
     if not record:
-        return False, "This book is not currently borrowed by this patron."
+        return False, "Error: Book not currently borrowed by this patron."
 
-    borrow_date = datetime.fromisoformat(record['borrow_date'])
+    # Calculate late fee before returning the book
+    late_fee_info = calculate_late_fee_for_book(patron_id, book_id)
+    fee_amount = late_fee_info.get('fee_amount', 0.0)
+
+    # Process return
     return_date = datetime.now()
-
     success_record = update_borrow_record_return_date(patron_id, book_id, return_date)
     success_book = update_book_availability(book_id, 1)
-
-    # calculate late fee
-    late_fee_info = calculate_late_fee_for_book(patron_id, book_id)
-    fee_amount = late_fee_info['fee_amount']
 
     if success_record and success_book:
         if fee_amount > 0:
@@ -150,7 +148,6 @@ def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
             return True, "Book returned successfully. No late fee owed."
     else:
         return False, "Error: Could not process return."
-
 
 def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
     """
@@ -170,56 +167,30 @@ def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
     }
     """
     if not patron_id or not book_id:
-        return {
-            "fee_amount": 0.00,
-            "days_overdue": 0,
-            "status": "Error: Invalid input."
-        }
+        return {"fee_amount": 0.0, "days_overdue": 0, "status": "Error: Invalid input."}
 
     book = get_book_by_id(book_id)
     if not book:
-        return {
-            "fee_amount": 0.00,
-            "days_overdue": 0,
-            "status": "Error: Book not found."
-        }
+        return {"fee_amount": 0.0, "days_overdue": 0, "status": "Error: Book not found."}
 
-    conn = get_db_connection()
-    records = conn.execute('''
-        SELECT * FROM borrow_records
-        WHERE patron_id = ? AND book_id = ? AND return_date IS NULL
-    ''', (patron_id, book_id)).fetchall()
-    conn.close()
+    record = get_patron_borrow_record(patron_id, book_id)
+    if not record:
+        return {"fee_amount": 0.0, "days_overdue": 0, "status": "No active borrow record"}
 
-    if not records:
-        return {
-            "fee_amount": 0.00,
-            "days_overdue": 0,
-            "status": "Error: No active borrow record found."
-        }
+    borrow_date = datetime.fromisoformat(record["borrow_date"]).date()
+    today = datetime.now().date()
+    days_borrowed = (today - borrow_date).days
+    overdue_days = max(0, days_borrowed - 14)
 
-    total_fee = 0.0
-    copies_overdue = []
-
-    for record in records:
-        borrow_date = datetime.fromisoformat(record['borrow_date']).date()
-        today = datetime.now().date()
-        days_borrowed = (today - borrow_date).days
-        overdue_days = max(0, days_borrowed - 14)
-        late_fee = 0.0
-        if overdue_days > 0:
-            late_fee = 0.5 * min(overdue_days, 7) + 1.0 * max(0, overdue_days - 7)
-            late_fee = min(late_fee, 15.0)
-        total_fee += late_fee
-        copies_overdue.append({
-            "borrow_date": borrow_date.isoformat(),
-            "days_overdue": overdue_days,
-            "late_fee": round(late_fee, 2)
-        })
+    if overdue_days <= 7:
+        fee_amount = 0.5 * overdue_days
+    else:
+        fee_amount = 0.5 * 7 + 1.0 * (overdue_days - 7)
+    fee_amount = min(fee_amount, 15.0)
 
     return {
-        "fee_amount": round(total_fee, 2),
-        "copies_overdue": copies_overdue,
+        "fee_amount": round(fee_amount, 2),
+        "days_overdue": overdue_days,
         "status": "Success"
     }
 def search_books_in_catalog(search_term: str, search_type: str) -> List[Dict]:
