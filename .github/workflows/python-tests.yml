@@ -27,4 +27,6 @@ jobs:
       run: python setup_test_db.py
 
     - name: Run tests
+      env:
+        LIBRARY_DB: library_test.db
       run: pytest -v
