@@ -199,3 +199,19 @@ def update_borrow_record_return_date(patron_id: str, book_id: int, return_date: 
     except Exception as e:
         conn.close()
         return False
+# my experimental functions
+# kindly ignore
+def check_borrow_limit(patron_id: str, max_books_allowed: int = 5) -> bool:
+    """Check if a patron can borrow more books."""
+    current_borrowed = get_patron_borrow_count(patron_id)
+    return current_borrowed < max_books_allowed
+def get_patron_borrow_record(patron_id: str, book_id: int):
+    conn = get_db_connection()
+    record = conn.execute('''
+        SELECT * FROM borrow_records
+        WHERE patron_id = ? AND book_id = ? AND return_date IS NULL
+        ORDER BY borrow_date ASC
+        LIMIT 1
+    ''', (patron_id, book_id)).fetchone()
+    conn.close()
+    return dict(record) if record else None

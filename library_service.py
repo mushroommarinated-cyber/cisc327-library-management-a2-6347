@@ -8,8 +8,9 @@ from typing import Dict, List, Optional, Tuple
 from database import (
     get_book_by_id, get_book_by_isbn, get_patron_borrow_count,
     insert_book, insert_borrow_record, update_book_availability,
-    update_borrow_record_return_date, get_all_books
+    update_borrow_record_return_date, get_all_books, get_db_connection, get_patron_borrowed_books, get_patron_borrow_record
 )
+
 
 def add_book_to_catalog(title: str, author: str, isbn: str, total_copies: int) -> Tuple[bool, str]:
     """
@@ -28,33 +29,34 @@ def add_book_to_catalog(title: str, author: str, isbn: str, total_copies: int) -
     # Input validation
     if not title or not title.strip():
         return False, "Title is required."
-    
+
     if len(title.strip()) > 200:
         return False, "Title must be less than 200 characters."
-    
+
     if not author or not author.strip():
         return False, "Author is required."
-    
+
     if len(author.strip()) > 100:
         return False, "Author must be less than 100 characters."
-    
+
     if len(isbn) != 13:
         return False, "ISBN must be exactly 13 digits."
-    
+
     if not isinstance(total_copies, int) or total_copies <= 0:
         return False, "Total copies must be a positive integer."
-    
+
     # Check for duplicate ISBN
     existing = get_book_by_isbn(isbn)
     if existing:
         return False, "A book with this ISBN already exists."
-    
+
     # Insert new book
     success = insert_book(title.strip(), author.strip(), isbn, total_copies, total_copies)
     if success:
         return True, f'Book "{title.strip()}" has been successfully added to the catalog.'
     else:
         return False, "Database error occurred while adding the book."
+
 
 def borrow_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     """
@@ -71,35 +73,39 @@ def borrow_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     # Validate patron ID
     if not patron_id or not patron_id.isdigit() or len(patron_id) != 6:
         return False, "Invalid patron ID. Must be exactly 6 digits."
-    
+
     # Check if book exists and is available
     book = get_book_by_id(book_id)
     if not book:
         return False, "Book not found."
-    
+
     if book['available_copies'] <= 0:
         return False, "This book is currently not available."
-    
+
     # Check patron's current borrowed books count
     current_borrowed = get_patron_borrow_count(patron_id)
-    
+
     if current_borrowed > 5:
         return False, "You have reached the maximum borrowing limit of 5 books."
-    
+
     # Create borrow record
     borrow_date = datetime.now()
     due_date = borrow_date + timedelta(days=14)
-    
+
     # Insert borrow record and update availability
     borrow_success = insert_borrow_record(patron_id, book_id, borrow_date, due_date)
     if not borrow_success:
         return False, "Database error occurred while creating borrow record."
-    
+
     availability_success = update_book_availability(book_id, -1)
     if not availability_success:
         return False, "Database error occurred while updating book availability."
-    
+
     return True, f'Successfully borrowed "{book["title"]}". Due date: {due_date.strftime("%Y-%m-%d")}.'
+
+
+LATE_FEE_RATE = 0.50
+
 
 def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     """
@@ -107,13 +113,54 @@ def return_book_by_patron(patron_id: str, book_id: int) -> Tuple[bool, str]:
     
     TODO: Implement R4 as per requirements
     """
-    return False, "Book return functionality is not yet implemented."
+    if not patron_id or not book_id:
+        return False, "Error: Invalid input."
+
+    book = get_book_by_id(book_id)
+    if not book:
+        return False, "Error: Book not found."
+
+    # get  earliest active borrow record for patron and book
+    conn = get_db_connection()
+    record = conn.execute('''
+        SELECT * FROM borrow_records
+        WHERE patron_id = ? AND book_id = ? AND return_date IS NULL
+        ORDER BY borrow_date ASC
+        LIMIT 1
+    ''', (patron_id, book_id)).fetchone()
+    conn.close()
+
+    if not record:
+        return False, "This book is not currently borrowed by this patron."
+
+    borrow_date = datetime.fromisoformat(record['borrow_date'])
+    return_date = datetime.now()
+
+    success_record = update_borrow_record_return_date(patron_id, book_id, return_date)
+    success_book = update_book_availability(book_id, 1)
+
+    # calculate late fee
+    late_fee_info = calculate_late_fee_for_book(patron_id, book_id)
+    fee_amount = late_fee_info['fee_amount']
+
+    if success_record and success_book:
+        if fee_amount > 0:
+            return True, f"Book returned successfully. Late fee owed: ${fee_amount:.2f}"
+        else:
+            return True, "Book returned successfully. No late fee owed."
+    else:
+        return False, "Error: Could not process return."
+
 
 def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
     """
     Calculate late fees for a specific book.
+    R5 requirements:
+    - books are due 14 days after borrowing
+    -$0.5/day after first 7 days overdue, $1.00/day after that
+    - max late fee does not exceed $15
     
-    TODO: Implement R5 as per requirements 
+    # implement 5
     
     
     return { // return the calculated values
@@ -122,15 +169,104 @@ def calculate_late_fee_for_book(patron_id: str, book_id: int) -> Dict:
         'status': 'Late fee calculation not implemented'
     }
     """
+    if not patron_id or not book_id:
+        return {
+            "fee_amount": 0.00,
+            "days_overdue": 0,
+            "status": "Error: Invalid input."
+        }
 
+    book = get_book_by_id(book_id)
+    if not book:
+        return {
+            "fee_amount": 0.00,
+            "days_overdue": 0,
+            "status": "Error: Book not found."
+        }
+
+    conn = get_db_connection()
+    records = conn.execute('''
+        SELECT * FROM borrow_records
+        WHERE patron_id = ? AND book_id = ? AND return_date IS NULL
+    ''', (patron_id, book_id)).fetchall()
+    conn.close()
+
+    if not records:
+        return {
+            "fee_amount": 0.00,
+            "days_overdue": 0,
+            "status": "Error: No active borrow record found."
+        }
+
+    total_fee = 0.0
+    copies_overdue = []
+
+    for record in records:
+        borrow_date = datetime.fromisoformat(record['borrow_date']).date()
+        today = datetime.now().date()
+        days_borrowed = (today - borrow_date).days
+        overdue_days = max(0, days_borrowed - 14)
+        late_fee = 0.0
+        if overdue_days > 0:
+            late_fee = 0.5 * min(overdue_days, 7) + 1.0 * max(0, overdue_days - 7)
+            late_fee = min(late_fee, 15.0)
+        total_fee += late_fee
+        copies_overdue.append({
+            "borrow_date": borrow_date.isoformat(),
+            "days_overdue": overdue_days,
+            "late_fee": round(late_fee, 2)
+        })
+
+    return {
+        "fee_amount": round(total_fee, 2),
+        "copies_overdue": copies_overdue,
+        "status": "Success"
+    }
 def search_books_in_catalog(search_term: str, search_type: str) -> List[Dict]:
     """
     Search for books in the catalog.
     
     TODO: Implement R6 as per requirements
     """
-    
-    return []
+    search_term = search_term.strip()
+    if not search_term:
+        return []
+
+    conn = get_db_connection()
+    books: List[Dict] = []
+
+    if search_type == 'isbn':
+        # exact match
+        query = "SELECT * FROM books WHERE isbn = ? ORDER BY title"
+        params = (search_term,)
+
+    elif search_type == 'title':
+        # case-insensitive partial match for the title
+        query = "SELECT * FROM books WHERE LOWER(title) LIKE LOWER(?) ORDER BY title"
+        params = (f"%{search_term}%",)
+
+    elif search_type == 'author':
+        # case-insensitive partial match for the author
+        query = "SELECT * FROM books WHERE LOWER(author) LIKE LOWER(?) ORDER BY title"
+        params = (f"%{search_term}%",)
+
+    else:
+        conn.close()
+        return []
+
+    try:
+        cursor = conn.execute(query, params)
+        results = cursor.fetchall()
+        books = [dict(row) for row in results]
+
+
+    except Exception as e:
+
+        print(f"Database error during search: {e}")
+
+    # list of books returned
+    return books
+
 
 def get_patron_status_report(patron_id: str) -> Dict:
     """
@@ -138,4 +274,63 @@ def get_patron_status_report(patron_id: str) -> Dict:
     
     TODO: Implement R7 as per requirements
     """
-    return {}
+    if not patron_id or not patron_id.isdigit() or len(patron_id) != 6:
+        return {
+            "status": "Error",
+            "message": "Invalid patron ID. Must be exactly 6 digits."
+        }
+
+    # get  patron borrowing data
+    try:
+        borrowed_books_list = get_patron_borrowed_books(patron_id)
+        borrow_count = get_patron_borrow_count(patron_id)
+    except Exception as e:
+        return {
+            "status": "Error",
+            "message": f"Database error while fetching patron records: {e}"
+        }
+
+    # calculate total late fees
+    total_late_fees = 0.00
+    current_loans_report = []
+
+    for book in borrowed_books_list:
+        late_fee, overdue_days = (0.00, 0)
+
+        if book.get("is_overdue"):
+            late_fee, overdue_days = calculate_late_fee_for_book(book["due_date"])
+            total_late_fees += late_fee
+
+        current_loans_report.append({
+            "book_id": book["book_id"],
+            "title": book["title"],
+            "author": book["author"],
+            "due_date": book["due_date"].strftime("%Y-%m-%d"),
+            "is_overdue": book["is_overdue"],
+            "days_overdue": overdue_days,
+            "late_fee_current": late_fee
+        })
+
+    # borrowing history handling
+    try:
+        borrowing_history = []
+        history_status = (
+            "Borrowing history not implemented yet."
+            if not borrowing_history else
+            "History retrieved successfully."
+        )
+    except Exception:
+        borrowing_history = []
+        history_status = "Error retrieving full borrowing history."
+
+    return {
+        "status": "Success",
+        "patron_id": patron_id,
+        "number_of_books_borrowed": borrow_count,
+        "books_currently_borrowed": current_loans_report,
+        "total_late_fees_owed": round(total_late_fees, 2),
+        "borrowing_history_summary": borrowing_history,
+        "_history_note": history_status
+    }
+
+
