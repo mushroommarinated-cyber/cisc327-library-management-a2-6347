@@ -2,19 +2,20 @@
 Database module for Library Management System
 Handles all database operations and connections
 """
-import os
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-# Database configuration
-DATABASE = 'library.db'
+# database config
+import os
+
+DATABASE = os.environ.get("LIBRARY_DB", "library.db")
+
 
 def get_db_connection():
-    """Get a database connection."""
-    db_path = os.environ.get("DB_PATH", "library.db")  # default to library.db
+    db_path = os.environ.get("LIBRARY_DB", "library.db")  # Use LIBRARY_DB, same as workflow
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Enables column access by name
+    conn.row_factory = sqlite3.Row
     return conn
 
 """def get_db_connection():
