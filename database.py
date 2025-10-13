@@ -12,9 +12,9 @@ import os
 DATABASE = os.getenv("DATABASE", "library.db")
 
 def get_db_connection():
-    """Get a database connection."""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row  # allows dict-like access
+    db_path = os.environ.get('DATABASE', 'library.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
     return conn
 
 """def get_db_connection():
