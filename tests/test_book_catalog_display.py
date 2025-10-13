@@ -6,7 +6,6 @@ def test_catalog_returns_list():
     books = get_all_books()
     assert isinstance(books, list)
 
-
 def test_catalog_contains_requirements():
     """Test that each book has ID, title, author, ISBN, and copies."""
     books = get_all_books()
@@ -19,14 +18,10 @@ def test_catalog_contains_requirements():
         assert "available_copies" in book
         assert "total_copies" in book
 
-
-def test_catalog__is_empty():
+def test_catalog_is_empty():
     """Test that catalog returns empty list if no books exist."""
     books = get_all_books()
     assert isinstance(books, list)
-
-
-# i will make one more or two more test cases
 
 def test_catalog_available_copies_not_exceed_total():
     """Test that available copies are not greater than total copies."""
