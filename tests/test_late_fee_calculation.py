@@ -1,26 +1,37 @@
 import pytest
 from library_service import *
 
+
 def test_late_fee_returns_dict():
-    """Function returns a dictionary."""
+    """Checks that the function returns a dictionary."""
     result = calculate_late_fee_for_book("123456", 1)
     assert isinstance(result, dict)
 
+
 def test_late_fee_valid_keys():
-    """Returned dict contains required keys."""
+    """Checks that the returned dict has the required keys."""
     result = calculate_late_fee_for_book("123456", 1)
     expected_keys = {"fee_amount", "days_overdue", "status"}
     assert expected_keys.issubset(result.keys())
 
+
 def test_late_fee_value_types():
-    """Returned values have correct types."""
+    """Checks that fee_amount is a float, that days_overdue is int, and status is str
+    as per the requirements."""
     result = calculate_late_fee_for_book("123456", 1)
     assert isinstance(result["fee_amount"], float)
     assert isinstance(result["days_overdue"], int)
     assert isinstance(result["status"], str)
 
+
+"""def test_late_fee_not_implemented_message():
+    Checks that the stub function returns the 'not implemented' status as it is
+    still a work in progress.
+    result = calculate_late_fee_for_book("123456", 1)
+    assert "not implemented" in result["status"].lower()"""
+
 def test_late_fee_no_active_borrow():
-    """Correctly handles a book that is not currently borrowed."""
-    # Use a book/patron combination guaranteed to have no active borrow
-    result = calculate_late_fee_for_book("123456", 9999)
+    """Checks that the function correctly handles a book that is not currently borrowed."""
+    result = calculate_late_fee_for_book("123456", 1)
+    # The function should return a message about no active borrow
     assert "no active borrow record" in result["status"].lower()
