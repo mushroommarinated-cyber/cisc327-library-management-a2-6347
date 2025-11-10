@@ -1,5 +1,5 @@
-from library_service import *
-from database import *
+from services.library_service import return_book_by_patron
+
 
 def test_return_book_valid():
     """Test returning a book that was borrowed."""

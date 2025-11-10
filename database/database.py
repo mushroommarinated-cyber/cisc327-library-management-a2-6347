@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 # database config
 import os
 
-DATABASE = os.environ.get("DATABASE", "library.db")
+DATABASE = os.environ.get("", "library.db")
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)

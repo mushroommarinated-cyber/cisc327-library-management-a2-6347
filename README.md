@@ -13,8 +13,8 @@ Students are provided with:
   - [`borrowing_routes.py`](routes/borrowing_routes.py): Book borrowing and return routes
   - [`api_routes.py`](routes/api_routes.py): JSON API endpoints for late fees and search
   - [`search_routes.py`](routes/search_routes.py): Book search functionality routes
-- [`database.py`](database.py): Database operations and SQLite functions
-- [`library_service.py`](library_service.py): **Business logic functions** (your main testing focus)
+- [`database.py`](database/database.py): Database operations and SQLite functions
+- [`library_service.py`](services/library_service.py): **Business logic functions** (your main testing focus)
 - [`templates/`](templates/): HTML templates for the web interface
 - [`requirements.txt`](requirements.txt): Python dependencies
 

@@ -1,5 +1,4 @@
-from library_service import *
-from database import *
+from database.database import *
 
 def test_catalog_returns_list():
     """Test that catalog returns a list."""

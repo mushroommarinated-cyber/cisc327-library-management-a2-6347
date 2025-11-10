@@ -1,7 +1,9 @@
 import pytest
 import sqlite3
 import os
-from library_service import *
+import random
+from services.library_service import add_book_to_catalog
+
 
 @pytest.fixture(autouse=True)
 def reset_test_db():
@@ -12,12 +14,12 @@ def reset_test_db():
     conn.commit()
     conn.close()
 
-def test_add_book_valid_input():
-    """Test adding a book with valid input."""
-    success, message = add_book_to_catalog("Harry Plotter", "LOL Rowling", "2235567890223", 5)
 
-    #assert success == True
-    assert "successfully added" in message.lower()
+def test_add_book_valid_input():
+    def test_add_book_valid_input():
+        isbn = "2235567890123"
+        success, message = add_book_to_catalog("Harry Plotter", "LOL Rowling", isbn, 5)
+        assert "successfully added" in message.lower()
 
 """def test_add_book_valid_input():
     #Test adding a book with valid input

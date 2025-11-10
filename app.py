@@ -6,7 +6,7 @@ Routes are organized in separate blueprint modules in the routes package.
 """
 
 from flask import Flask
-from database import init_database, add_sample_data
+from database.database import init_database, add_sample_data
 from routes import register_blueprints
 
 
