@@ -165,22 +165,25 @@ class TestLibraryServicePayments(unittest.TestCase):
         self.assertIn("status", result)
         self.assertIn("error", result['status'].lower())
 
-    @patch('services.library_service.get_book_by_id', return_value={'id': 1, 'title': 'Max Book', 'available_copies': 1})
+    @patch('services.library_service.get_book_by_id',
+           return_value={'id': 1, 'title': 'Max Book', 'available_copies': 1})
     @patch('services.library_service.get_patron_borrow_count', return_value=5)
     def test_borrow_patron_at_max_limit_branch(self, mock_count, mock_book):
         success, msg = borrow_book_by_patron("123456", 1)
         self.assertTrue(success)  # current logic still allows borrowing
         self.assertIn("borrowed", msg.lower())
 
-    @patch('services.library_service.get_book_by_id', return_value={'id': 2, 'title': 'No Copies', 'available_copies': 0})
+    @patch('services.library_service.get_book_by_id',
+           return_value={'id': 2, 'title': 'No Copies', 'available_copies': 0})
     @patch('services.library_service.get_patron_borrow_count', return_value=0)
     def test_borrow_no_copies_branch(self, mock_count, mock_book):
         success, msg = borrow_book_by_patron("123456", 2)
         self.assertFalse(success)
         self.assertIn("not available", msg.lower())
 
-    @patch('services.library_service.get_book_by_id', return_value={'id': 3, 'title': 'Return Fail', 'available_copies': 0})
-    @patch('services.library_service.get_patron_borrowed_books', return_value=[{'book_id':3,'title':'Return Fail'}])
+    @patch('services.library_service.get_book_by_id',
+           return_value={'id': 3, 'title': 'Return Fail', 'available_copies': 0})
+    @patch('services.library_service.get_patron_borrowed_books', return_value=[{'book_id': 3, 'title': 'Return Fail'}])
     @patch('services.library_service.update_borrow_record_return_date', return_value=False)
     @patch('services.library_service.update_book_availability', return_value=True)
     def test_return_book_update_record_fail(self, mock_update_book, mock_update_record, mock_borrowed, mock_book):
@@ -188,16 +191,12 @@ class TestLibraryServicePayments(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("error", msg.lower())
 
-    @patch('services.library_service.get_book_by_id', return_value={'id': 4, 'title': 'Zero Late', 'borrow_date': '2025-11-10'})
+    @patch('services.library_service.get_book_by_id',
+           return_value={'id': 4, 'title': 'Zero Late', 'borrow_date': '2025-11-10'})
     def test_calculate_late_fee_zero_days_branch(self, mock_book):
         result = calculate_late_fee_for_book(4, "123456")
         self.assertIn('fee_amount', result)
         self.assertEqual(result['fee_amount'], 0.0)
-
-
-
-
-
 
 
 if __name__ == "__main__":
